@@ -1,4 +1,4 @@
 #launch.json folder
-./.vscode
+/.vscode
 #Cache folder
-./__pycache__
+/__pycache__
