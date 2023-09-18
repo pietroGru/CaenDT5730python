@@ -177,10 +177,28 @@ class rootconverter():
         for item in list(input.keys()):
             result += f"{item}:"
         return result[:-1]
-    # Set description for better readibility
-    def _utils_mkRootTtreeHumanDescrFromDict(self, rNtuple, setupDict: dict):
-        for entry in setupDict:
-            rNtuple.GetLeaf(entry).SetTitle(setupDict[entry])
+    # Set description (better readibility)
+    def _utils_mkRootTtreeHumanDescrFromDict(self, tree, tree_nametypes):
+        # If a branch name is not compatible with ROOT name conventions, the
+        # name is first sanified and then a branch with that name is created.
+        # For example 'myname2.' cannot exist
+        # A naive comparison like 
+        # for entry in tree_nametypes:
+        #     tree.GetBranch(entry[0]).SetTitle(entry[3])
+        # would fail since the GetBranch for 'myname2.' would return nullpointer
+
+        # WARNING: using GetLeaf works but it produces a bug in the generated ROOT output
+        # file such that the Data is not displayed when using sca. With the traditional TBrowser
+        # it won't work either while with the web ROOT interface it works.
+
+        for entry in tree_nametypes:
+                try:
+                    branch = tree.GetBranch(entry[0])
+                    branch.SetTitle(entry[3])
+                except ReferenceError:
+                    (self.logging).error(f"Branch {entry[0]} not found. This is nullptr")
+
+
 
     # Prepare the ROOT file
     def prepareROOT(self, fname: str):
