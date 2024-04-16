@@ -148,12 +148,51 @@ class CAEN_DGTZ_UINT16_EVENT_t(ctypes.Structure):
             samples = self._fields_[1][ch*samplesNb:(ch+1)*samplesNb]
             print(samples)               
 
+# Error codes
+CAEN_DGTZ_ErrorCode = {
+    0   : ('CAEN_DGTZ_Success', 'Operation completed successfully'),
+    -1  : ('CAEN_DGTZ_CommError', 'Communication error'),
+    -2  : ('CAEN_DGTZ_GenericError', 'Unspecified error'),
+    -3  : ('CAEN_DGTZ_InvalidParam', 'Invalid parameter'),
+    -4  : ('CAEN_DGTZ_InvalidLinkType', 'Invalid Link Type'),
+    -5  : ('CAEN_DGTZ_InvalidHandle', 'Invalid device handle'),
+    -6  : ('CAEN_DGTZ_MaxDevicesError', 'Maximum number of devices exceeded'),
+    -7  : ('CAEN_DGTZ_BadBoardType', 'The operation is not allowed on this type of board'),
+    -8  : ('CAEN_DGTZ_BadInterruptLev', 'The interrupt level is not allowed'),
+    -9  : ('CAEN_DGTZ_BadEventNumber', 'The event number is bad'),
+    -10 : ('CAEN_DGTZ_ReadDeviceRegisterFail', 'Unable to read the registry'),
+    -11 : ('CAEN_DGTZ_WriteDeviceRegisterFail', 'Unable to write into the registry'),
+    -13 : ('CAEN_DGTZ_InvalidChannelNumber', 'The channel number is invalid'),
+    -14 : ('CAEN_DGTZ_ChannelBusy', 'The Channel is busy'),
+    -15 : ('CAEN_DGTZ_FPIOModeInvalid', 'Invalid FPIO Mode'),
+    -16 : ('CAEN_DGTZ_WrongAcqMode', 'Wrong acquisition mode'),
+    -17 : ('CAEN_DGTZ_FunctionNotAllowed', 'This function is not allowed for this module'),
+    -18 : ('CAEN_DGTZ_Timeout', 'Communication Timeout'),
+    -19 : ('CAEN_DGTZ_InvalidBuffer', 'The buffer is invalid'),
+    -20 : ('CAEN_DGTZ_EventNotFound', 'The event is not found'),
+    -21 : ('CAEN_DGTZ_InvalidEvent', 'The event is invalid'),
+    -22 : ('CAEN_DGTZ_OutOfMemory', 'Out of memory'),
+    -23 : ('CAEN_DGTZ_CalibrationError', 'Unable to calibrate the board'),
+    -24 : ('CAEN_DGTZ_DigitizerNotFound', 'Unable to open the digitizer'),
+    -25 : ('CAEN_DGTZ_DigitizerAlreadyOpen', 'The Digitizer is already open'),
+    -26 : ('CAEN_DGTZ_DigitizerNotReady', 'The Digitizer is not ready to operate'),
+    -27 : ('CAEN_DGTZ_InterruptNotConfigured', 'The Digitizer has not the IRQ configured'),
+    -28 : ('CAEN_DGTZ_DigitizerMemoryCorrupted', 'The digitizer flash memory is corrupted'),
+    -29 : ('CAEN_DGTZ_DPPFirmwareNotSupported', 'The digitizer dpp firmware is not supported in this lib version'),
+    -30 : ('CAEN_DGTZ_InvalidLicense', 'Invalid Firmware License'),
+    -31 : ('CAEN_DGTZ_InvalidDigitizerStatus', 'The digitizer is found in a corrupted status'),
+    -32 : ('CAEN_DGTZ_UnsupportedTrace', 'The given trace is not supported by the digitizer'),
+    -33 : ('CAEN_DGTZ_InvalidProbe', "The given probe is not supported for the given digitizer's trace"),
+    -34 : ('CAEN_DGTZ_UnsupportedBaseAddress', "The Base Address is not supported, it's a Desktop device?"),
+    -99 : ('CAEN_DGTZ_NotYetImplemented', 'The function is not yet implemented')
+}
+def CAEN_DGTZ_ErrorHandler(ret: int):
+    if ret > 0:
+        return
+    else:
+        raise Exception(CAEN_DGTZ_ErrorCode[ret][0] + " - " + CAEN_DGTZ_ErrorCode[ret][1])
 
 
-
-##############################################################
-######## CAENDT5730 class ####################################
-##############################################################
 class CAENDT5742B():
     
     ### Utils
@@ -204,64 +243,100 @@ class CAENDT5742B():
         def getTotalEvents(self):
             return self.totEventNb
   
-    def __init__(self, usbLinkID: int, evtReadoutQueue: queue.Queue, libPath = 'libCAENDigitizer.so', eventCutoff=-1, logLevel: int = 20) -> None:
+    def __init__(self, usbLinkID: int, evtReadoutQueue: queue.Queue, libCAENDigitizer_path = 'libCAENDigitizer.so', libCAENX742DecodeRoutines_path = './libX742DecodeRoutines.so', eventCutoff=-1, logLevel: int = 20) -> None:
         # Create the class logger instante
         self.logging = create_logger("CAENDT5742B")
         self.logging.setLevel(logLevel)      
         
         # Load CAENDigitizer library
-        self.libCAENDigitizer = ctypes.cdll.LoadLibrary(libPath)
-        self.libX742Decoder = ctypes.cdll.LoadLibrary('/home/grutta/work/CaenDT5730python/libx742DecodeRoutines.so')
-        # @todo: implement exception handler
-        self.usbLinkID = ctypes.c_int(usbLinkID)
+        self.libCAENDigitizer = ctypes.cdll.LoadLibrary(libCAENDigitizer_path)
+        self.libCAENX742DecodeRoutines = ctypes.cdll.LoadLibrary(libCAENX742DecodeRoutines_path)
         
-        ## ctypes implementation of the functions
-        # CAEN_DGTZ_GetInfo.
-        # @brief Get digitizer information
-        self.CAEN_DGTZ_GetInfo = self.libCAENDigitizer.CAEN_DGTZ_GetInfo
-        self.CAEN_DGTZ_GetInfo.argtypes = [ctypes.c_int, ctypes.POINTER(self.CAEN_DGTZ_BoardInfo_t)]
-        self.CAEN_DGTZ_GetInfo.restype = ctypes.c_long 
-        # CAEN_DGTZ_GetEventInfo
-        # @brief Get event information
-        self.CAEN_DGTZ_GetEventInfo = self.libCAENDigitizer.CAEN_DGTZ_GetEventInfo
-        self.CAEN_DGTZ_GetEventInfo.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_char), ctypes.c_uint32, ctypes.c_int32, ctypes.POINTER(self.CAEN_DGTZ_EventInfo_t), ctypes.POINTER(ctypes.POINTER(ctypes.c_char))]
-        self.CAEN_DGTZ_GetEventInfo.restype = ctypes.c_long
+        # Parameters for the digitizer
+        self.handle = ctypes.c_int()                                        # Digitizer unique handler ID for the session
+        self.usbLinkID = ctypes.c_int(usbLinkID)                            # Digitizer USB link ID
+        self.samplingRate = 500e6                                           # 500 MS/s
+        self.dacResolution = int(2**12)                                     # 2^12 bit
+        # self.boardInfo = None                                               # Board info var
+        self.dgtConfigured = False                                          # Board setup has been done
         
-        # Thread-safe queue with events readout
+        # Variables for the acquisition
+        self.buffer = ctypes.POINTER(ctypes.c_char)()                       # Input buffer
+        self.bufferSize = ctypes.c_uint32(0)                                # Sizeof of the input buffer
+        self.eventInfo = CAEN_DGTZ_EventInfo_t()                            # Event info struct
+        self.evtptr = ctypes.POINTER(ctypes.c_char)()                       # evtptr char event buffer - I don't remember
+        self.Evt = ctypes.POINTER(CAEN_DGTZ_UINT16_EVENT_t)()               # evt pointer
+        
+        # Event readout variables
+        self.daqLoop = True
+        self.acquisitionMode = True 
+        ## Queue for events readout
         self.eventReadout = evtReadoutQueue
-        # Close digitizer after cutoff is reached (mainly for debugging)
+        ### Close digitizer after cutoff is reached (mainly for debugging)
         self.eventCutoff = eventCutoff
-        if self.eventCutoff > 0:
-            (self.logging).warning(f"Event cutoff set. The readout will stop after {self.eventCutoff} events!")
+        if self.eventCutoff>0: (self.logging).warning(f"Event cutoff set. The readout will stop after {self.eventCutoff} events!")
+        
+        # Calibration data [(from DAC to V is just V = m*sample + q)]
+        self.cal_m, self.cal_q = 0.00012782984648295086, -1.0470712607404515
+        
+        ############################################################################################################
+        
+        # Functions (for which it is super convenient to pythonize the input/output) 
+        # ## CAEN_DGTZ_GetInfo
+        # self.CAEN_DGTZ_GetInfo = self.libCAENDigitizer.CAEN_DGTZ_GetInfo
+        # self.CAEN_DGTZ_GetInfo.argtypes = [ctypes.c_int, ctypes.POINTER(CAEN_DGTZ_BoardInfo_t)]
+        # self.CAEN_DGTZ_GetInfo.restype = ctypes.c_long 
+        # # CAEN_DGTZ_GetEventInfo
+        # self.CAEN_DGTZ_GetEventInfo = self.libCAENDigitizer.CAEN_DGTZ_GetEventInfo
+        # self.CAEN_DGTZ_GetEventInfo.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_char), ctypes.c_uint32, ctypes.c_int32, ctypes.POINTER(CAEN_DGTZ_EventInfo_t), ctypes.POINTER(ctypes.POINTER(ctypes.c_char))]
+        # self.CAEN_DGTZ_GetEventInfo.restype = ctypes.c_long
+        
+        ####################################################################################################################################################################################
+        
+
+    
     
     # Open the digitizer and retrieve information about the boards
     def open(self):
+        """
+        Open the digitizer with the given USB link ID and retrieve the board information
+        """
         # Open the digitizer and store the handler ID
         ret = self.libCAENDigitizer.CAEN_DGTZ_OpenDigitizer(0, self.usbLinkID, 0, 0, ctypes.byref(self.handle))
-        if ret!=0:
-            (self.logging).critical("CAEN_DGTZ_OpenDigitizer failed.")
-            raise Exception("CAEN_DGTZ_OpenDigitizer failed.")
-        else:
-            (self.logging).debug("CAEN_DGTZ_OpenDigitizer OK")
+        CAEN_DGTZ_ErrorHandler(ret)
         
         # Get board information
-        self.boardInfo = self.CAEN_DGTZ_BoardInfo_t()
-        ret = self.CAEN_DGTZ_GetInfo(self.handle, ctypes.byref(self.boardInfo))
-        if ret!=0:
-            (self.logging).critical("CAEN_DGTZ_GetInfo failed.")
-        else:
-            (self.logging).debug("CAEN_DGTZ_GetInfo OK")
-            (self.boardInfo).print()
-            
-            
+        self.boardInfo = CAEN_DGTZ_BoardInfo_t()
+        ret = self.libCAENDigitizer.CAEN_DGTZ_GetInfo(self.handle, ctypes.byref(self.boardInfo))
+        CAEN_DGTZ_ErrorHandler(ret)
+    
+    
+    # Setup of the digitizer. Unpack the input arguments and setup the calls to the libCAEN methods
     def setup(self, **kwargs):
+        """
+        Setup of the digitizer. Unpack the input arguments and setup the calls to the libCAEN methods
+        
+        Parameters
+        ----------
+            **kwargs (dict) : setup parameters
+        """
         self.setup_DT5730(**kwargs)
-            
-    def setup_DT5742B(self, **kwargs):
-        ret = {}
-        ret['CAEN_DGTZ_Reset'] = self.libCAENDigitizer.CAEN_DGTZ_Reset(self.handle)                                                                             # Reset Digitizer
-        # ret['CAEN_DGTZ_Calibrate'] = self.libCAENDigitizer.CAEN_DGTZ_Calibrate(self.handle)                                                                     # Calibrate the digitizers!= 0: (self.logging).error("CAEN_DGTZ_Calibrate")
-        time.sleep(0.100) #may be useful
+    
+    
+    # Enable a triangular sawtooth test pattern at the input of the ADC
+    def enableTestPatter(self):
+        """
+        Enable a triangular sawtooth test pattern at the input of the ADC
+        """
+        ret = self.libCAENDigitizer.CAEN_DGTZ_WriteRegister(self.handle, 0x8004, 1<<3)
+        CAEN_DGTZ_ErrorHandler(ret)
+        
+    
+    # Default setup for the CAEN DT5742B digitizer.
+    def setup_DT5742BDefault(self):
+        """
+        Default setup for the CAEN DT5742B digitizer.
+        """
         
         CAEN_DGTZ_TriggerMode_t = {
             'CAEN_DGTZ_TRGMODE_DISABLED' : 0,
@@ -270,11 +345,11 @@ class CAENDT5742B():
             'CAEN_DGTZ_TRGMODE_ACQ_AND_EXTOUT' : 3
         }
         CAEN_DGTZ_RunSyncMode_t = {       
-        'CAEN_DGTZ_RUN_SYNC_Disabled': 0,
-        'CAEN_DGTZ_RUN_SYNC_TrgOutTrgInDaisyChain': 1,
-        'CAEN_DGTZ_RUN_SYNC_TrgOutSinDaisyChain': 2,
-        'CAEN_DGTZ_RUN_SYNC_SinFanout': 3,
-        'CAEN_DGTZ_RUN_SYNC_GpioGpioDaisyChain': 4
+            'CAEN_DGTZ_RUN_SYNC_Disabled': 0,
+            'CAEN_DGTZ_RUN_SYNC_TrgOutTrgInDaisyChain': 1,
+            'CAEN_DGTZ_RUN_SYNC_TrgOutSinDaisyChain': 2,
+            'CAEN_DGTZ_RUN_SYNC_SinFanout': 3,
+            'CAEN_DGTZ_RUN_SYNC_GpioGpioDaisyChain': 4
         }
         CAEN_DGTZ_IOLevel_t = {
             'CAEN_DGTZ_IOLevel_NIM' : 0,
@@ -304,7 +379,10 @@ class CAENDT5742B():
             'CAEN_DGTZ_FIRST_TRG_CONTROLLED' : 2
         }
 
-        # ret['CAEN_DGTZ_WriteRegister']                  = self.libCAENDigitizer.CAEN_DGTZ_WriteRegister(self.handle, 0x8004, 1<<3)
+        ret = {}
+        # Reset the digitizer to restore the original configuration
+        ret['CAEN_DGTZ_Reset']                          = self.libCAENDigitizer.CAEN_DGTZ_Reset(self.handle)
+        time.sleep(0.100) #may be useful
 
         # Trigger configuration
         ret['CAEN_DGTZ_SetSWTriggerMode']               = self.libCAENDigitizer.CAEN_DGTZ_SetSWTriggerMode(self.handle, CAEN_DGTZ_TriggerMode_t['CAEN_DGTZ_TRGMODE_DISABLED'])
@@ -339,66 +417,15 @@ class CAENDT5742B():
         # ret['CAEN_DGTZ_SetAnalogInspectionMonParams']   = self.libCAENDigitizer.CAEN_DGTZ_SetAnalogInspectionMonParams(self.handle)
         # ret['CAEN_DGTZ_SetEventPackaging']              = self.libCAENDigitizer.CAEN_DGTZ_SetEventPackaging(self.handle)
         
-        
-        # Check setup successfully completed     
         retGlobal = 0
-        for item in ret:
-            retGlobal |= ret[item]
-        if retGlobal==0:
-            (self.logging).info("Digitizer setup OK")
-            self.dgtConfigured = True
-        else:
-            (self.logging).warning("Digitizer setup not completed correctly")
-            for i, key in enumerate(ret):
-                (self.logging).warning(f"{i:<2} | {key:<20} : {ret[key]}")
-            self.dgtConfigured = False
-        time.sleep(0.200)
+        for key in ret:
+            retGlobal |= ret[key]
+            if ret[key] < 0: self.logging.error(f"Error in setting {key} ({ret[key]})")
+            CAEN_DGTZ_ErrorHandler(ret[key])
+        
+        # Set the digitizer configured flag
+        self.dgtConfigured = True
 
-        
-        
-        
-        
-    
-    # Setup the digitizer 
-    # Here I follow the same order of the WaveDump.C setup
-    def setup_DT5730(self, recordlength = 1500000, triggerThreshold = 8196, postTriggerSize = 99, maxNumEventsBLT = 1, channelDCOffset = 32767):
-        ret = {}
-        ret['CAEN_DGTZ_Reset'] = self.libCAENDigitizer.CAEN_DGTZ_Reset(self.handle)                                                                             # Reset Digitizer
-        ret['CAEN_DGTZ_Calibrate'] = self.libCAENDigitizer.CAEN_DGTZ_Calibrate(self.handle)                                                                     # Calibrate the digitizers!= 0: (self.logging).error("CAEN_DGTZ_Calibrate")
-        time.sleep(0.100) #may be useful
-        
-        recordLen = ctypes.c_uint32(recordlength)
-        ret['CAEN_DGTZ_SetRecordLength'] = self.libCAENDigitizer.CAEN_DGTZ_SetRecordLength(self.handle, recordLen)                                              # Set the lenght of each waveform (in samples) (1sample = 0.2ns) [7us+ 2x4us + 30us = 45us -> 225000 samples / 1500000 samples = 300us]
-        ret['CAEN_DGTZ_GetRecordLength'] = self.libCAENDigitizer.CAEN_DGTZ_GetRecordLength(self.handle, ctypes.byref(recordLen))                                       # Retrieve the set value for the record length
-        
-        postTrgSz = ctypes.c_uint32(postTriggerSize)
-        ret['CAEN_DGTZ_SetPostTriggerSize'] = self.libCAENDigitizer.CAEN_DGTZ_SetPostTriggerSize(self.handle, postTrgSz)                                        # Sets post trigger for next acquisitions (99% of the window)
-        ret['CAEN_DGTZ_GetPostTriggerSize'] = self.libCAENDigitizer.CAEN_DGTZ_GetPostTriggerSize(self.handle, ctypes.byref(postTrgSz))                                 # Retrieve the set value record length
-        ret['CAEN_DGTZ_SetIOLevel'] = self.libCAENDigitizer.CAEN_DGTZ_SetIOLevel(self.handle, ctypes.c_long(0))                                                        # Set NIM level (1 for TTL) 
-        ret['CAEN_DGTZ_SetMaxNumEventsBLT'] = self.libCAENDigitizer.CAEN_DGTZ_SetMaxNumEventsBLT(self.handle, ctypes.c_uint32(maxNumEventsBLT))                        # Set the max number of events to transfer in a sigle readout
-        ret['CAEN_DGTZ_SetAcquisitionMode'] = self.libCAENDigitizer.CAEN_DGTZ_SetAcquisitionMode(self.handle, ctypes.c_long(0))                                        # Set the acquisition mode
-        ret['CAEN_DGTZ_SetExtTriggerInputMode'] = self.libCAENDigitizer.CAEN_DGTZ_SetExtTriggerInputMode(self.handle, ctypes.c_long(1))                                # Sets external trigger input mode to CAEN_DGTZ_TRGMODE_ACQ_ONLY
-        #
-        ret['CAEN_DGTZ_SetChannelEnableMask'] = self.libCAENDigitizer.CAEN_DGTZ_SetChannelEnableMask(self.handle, 1)                                            # Enable channel 0
-        ret['CAEN_DGTZ_SetChannelDCOffset'] = self.libCAENDigitizer.CAEN_DGTZ_SetChannelDCOffset(self.handle, ctypes.c_uint32(1), ctypes.c_uint32(channelDCOffset))           # Sets the DC offset for a specified channel. Tvalue is expressed in channel DAC (Digital to Analog Converter) steps. Please refer to digitizer documentation for possible value range. [for DT5730 it is 16-bit (0-65535) DAC up to +- 1V if FSR is 2Vpp]
-
-        ret['CAEN_DGTZ_SetChannelTriggerThreshold'] = self.libCAENDigitizer.CAEN_DGTZ_SetChannelTriggerThreshold(self.handle, 0, ctypes.c_uint32(triggerThreshold))    # Set selfTrigger threshold    
-        ret['CAEN_DGTZ_SetTriggerPolarity'] = self.libCAENDigitizer.CAEN_DGTZ_SetTriggerPolarity(self.handle, ctypes.c_uint32(1), ctypes.c_long(0))                           # Sets the trigger polarity of a specified channel
-        ret['CAEN_DGTZ_SetChannelSelfTrigger'] = self.libCAENDigitizer.CAEN_DGTZ_SetChannelSelfTrigger(self.handle, ctypes.c_long(1), 0)                               # Set trigger on channel 0 to be ACQ_ONLY
-
-        # Check setup successfully completed     
-        retGlobal = 0
-        for item in ret:
-            retGlobal |= ret[item]
-        if retGlobal==0:
-            (self.logging).info("Digitizer setup OK")
-            self.dgtConfigured = True
-        else:
-            (self.logging).warning("Digitizer setup not completed correctly")
-            for i, key in enumerate(ret):
-                (self.logging).warning(f"{i:<2} | {key:<20} : {ret[key]}")
-            self.dgtConfigured = False
-        time.sleep(0.200)                                                                                              # This time is important to make sure that board configuration is written
     
     # TODO generalize to list channelDCOffset_V
     def setupSimple_DT5730(self, windowSize_s = 300e-6, triggerThres_V = 1.5, channelDCOffset_V = 0.):
@@ -420,104 +447,145 @@ class CAENDT5742B():
             (self.logging).info(f"Target DC offset of {channelDCOffset_V}V is applied by setting DCoffset DAC value reg. to {channelDCOffset}")                  
         
         self.setup(recordlength=int(recordlength), triggerThreshold=int(triggerThreshold), channelDCOffset=int(channelDCOffset))
-    
-    
-    def setupSimple_DT5742B(self, windowSize_s = 300e-6, triggerThres_V = 1.5, channelDCOffset_V = 0.):
-        # Convert window size from s to sample units
-        recordlength = windowSize_s * self.samplingRate
-        (self.logging).info(f"Target window of {windowSize_s*1e6}us is achieved with {recordlength}samples ({recordlength*self.samplingRate*1e6}us)") 
-        #
-        # Trigger threshold
-        triggerThreshold = (triggerThres_V-self.cal_q) / self.cal_m
-        (self.logging).info(f"Target threshold of {triggerThres_V}V is achieved with a {triggerThreshold}samples trigger threshold") 
-        
-        # DC offset (+/- 1V at 2Vpp op.)
-        dcOffsetDAC = 65536 # 16-bit
-        channelDCOffset = dcOffsetDAC/2
-        if channelDCOffset_V not in [-1, 1]:
-            (self.logging).warning("Channels DC offset must be within +/- 1V for DT5730 in 2Vpp operation.")
-        else:
-            channelDCOffset = dcOffsetDAC/2 + int(channelDCOffset_V/2.0 * dcOffsetDAC)
-            (self.logging).info(f"Target DC offset of {channelDCOffset_V}V is applied by setting DCoffset DAC value reg. to {channelDCOffset}")                  
-        
-        self.setup(recordlength=int(recordlength), triggerThreshold=int(triggerThreshold), channelDCOffset=int(channelDCOffset))
-        
-    
+
+
+
     # Get the current setup and print
-    def printCurrentSetup(self):
-        ret = 0
-        # Here I follow the same order of the WaveDump.C setup
-        RecordLength = ctypes.c_uint32()
-        ret |= self.libCAENDigitizer.CAEN_DGTZ_GetRecordLength(self.handle, ctypes.byref(RecordLength))                          # Retrieve the set value for the record length
-        #
-        PostTriggerSize = ctypes.c_uint32()
-        ret |= self.libCAENDigitizer.CAEN_DGTZ_GetPostTriggerSize(self.handle, ctypes.byref(PostTriggerSize))                       # Retrieve the set value record length
-        #
-        IOLevel = ctypes.c_long()
-        ret |= self.libCAENDigitizer.CAEN_DGTZ_GetIOLevel(self.handle, ctypes.byref(IOLevel))                                 # Set TTL levels 
-        #
-        MaxNumEventsBLT = ctypes.c_uint32()
-        ret |= self.libCAENDigitizer.CAEN_DGTZ_GetMaxNumEventsBLT(self.handle, ctypes.byref(MaxNumEventsBLT))              # Set the max number of events to transfer in a sigle readout
-        #
-        AcquisitionMode = ctypes.c_long()
-        ret |= self.libCAENDigitizer.CAEN_DGTZ_GetAcquisitionMode(self.handle, ctypes.byref(AcquisitionMode))                              # Set the acquisition mode
-        #
-        ExtTriggerInputMode = ctypes.c_long()
-        ret |= self.libCAENDigitizer.CAEN_DGTZ_GetExtTriggerInputMode(self.handle, ctypes.byref(ExtTriggerInputMode))                          # Sets external trigger input mode to CAEN_DGTZ_TRGMODE_ACQ_ONLY
-        #
-        ChannelEnableMask = ctypes.c_uint32()
-        ret |= self.libCAENDigitizer.CAEN_DGTZ_GetChannelEnableMask(self.handle, ctypes.byref(ChannelEnableMask))                                    # Enable channel 0
-        #
-        ChannelDCOffset = ctypes.c_uint32()
-        ret |= self.libCAENDigitizer.CAEN_DGTZ_GetChannelDCOffset(self.handle, ctypes.c_uint32(1), ctypes.byref(ChannelDCOffset)) # Sets the DC offset for a specified channel. Tvalue is expressed in channel DAC (Digital to Analog Converter) steps. Please refer to digitizer documentation for possible value range. [for DT5730 it is 16-bit (0-65535) DAC up to +- 1V if FSR is 2Vpp]
-        #
-        ChannelTriggerThreshold = ctypes.c_uint32()
-        ret |= self.libCAENDigitizer.CAEN_DGTZ_GetChannelTriggerThreshold(self.handle, 0, ctypes.byref(ChannelTriggerThreshold))  # Set selfTrigger threshold    
-        #
-        TriggerPolarity = ctypes.c_long()
-        ret |= self.libCAENDigitizer.CAEN_DGTZ_GetTriggerPolarity(self.handle, ctypes.c_uint32(1), ctypes.byref(TriggerPolarity))                 # Sets the trigger polarity of a specified channel
-        #
-        ChannelSelfTrigger = ctypes.c_long()
-        ret |= self.libCAENDigitizer.CAEN_DGTZ_GetChannelSelfTrigger(self.handle, ctypes.c_long(1), ctypes.byref(ChannelSelfTrigger))                        # Set trigger on channel 0 to be ACQ_ONLY
-        #
-        FastTriggerMode = ctypes.c_long()
-        ret |= self.libCAENDigitizer.CAEN_DGTZ_GetFastTriggerMode(self.handle, ctypes.byref(FastTriggerMode))                        # Get the status of the TRn input fast trigger mode
-        #
-        DRS4SamplingFrequency = ctypes.c_long()
-        ret |= self.libCAENDigitizer.CAEN_DGTZ_GetDRS4SamplingFrequency(self.handle, ctypes.byref(DRS4SamplingFrequency))                        # Get the status of the TRn input fast trigger mod
+    def printSetup(self):
+        CAEN_DGTZ_TriggerMode_t = { 
+            'CAEN_DGTZ_TRGMODE_DISABLED' : 0,
+            'CAEN_DGTZ_TRGMODE_EXTOUT_ONLY' : 2,
+            'CAEN_DGTZ_TRGMODE_ACQ_ONLY' : 1,
+            'CAEN_DGTZ_TRGMODE_ACQ_AND_EXTOUT' : 3
+        }
+        CAEN_DGTZ_RunSyncMode_t = {       
+            'CAEN_DGTZ_RUN_SYNC_Disabled': 0,
+            'CAEN_DGTZ_RUN_SYNC_TrgOutTrgInDaisyChain': 1,
+            'CAEN_DGTZ_RUN_SYNC_TrgOutSinDaisyChain': 2,
+            'CAEN_DGTZ_RUN_SYNC_SinFanout': 3,
+            'CAEN_DGTZ_RUN_SYNC_GpioGpioDaisyChain': 4
+        }
+        CAEN_DGTZ_IOLevel_t = {
+            'CAEN_DGTZ_IOLevel_NIM' : 0,
+            'CAEN_DGTZ_IOLevel_TTL' : 1
+        }
+        CAEN_DGTZ_TriggerPolarity_t = {
+            'CAEN_DGTZ_TriggerOnRisingEdge' : 0,
+            'CAEN_DGTZ_TriggerOnFallingEdge' : 1
+        }
+        CAEN_DGTZ_EnaDis_t = {
+            'CAEN_DGTZ_ENABLE' : 1,
+            'CAEN_DGTZ_DISABLE' : 0
+        }
+        CAEN_DGTZ_DRS4Frequency_t = {
+            'CAEN_DGTZ_DRS4_5GHz' : 0,
+            'CAEN_DGTZ_DRS4_2_5GHz' : 1,
+            'CAEN_DGTZ_DRS4_1GHz' : 2,
+            'CAEN_DGTZ_DRS4_750MHz' : 3,
+            '_CAEN_DGTZ_DRS4_COUNT_' : 4
+        }
+        CAEN_DGTZ_OutputSignalMode_t = {
+            'CAEN_DGTZ_TRIGGER' : 0,
+            'CAEN_DGTZ_FASTTRG_ALL' : 1,
+            'CAEN_DGTZ_FASTTRG_ACCEPTED' : 2,
+            'CAEN_DGTZ_BUSY' : 3
+        }
+        CAEN_DGTZ_AcqMode_t = {
+            'CAEN_DGTZ_SW_CONTROLLED' : 0,
+            'CAEN_DGTZ_S_IN_CONTROLLED' : 1,
+            'CAEN_DGTZ_FIRST_TRG_CONTROLLED' : 2
+        }
         
-        if ret==0:
-            (self.logging).info("GetSetup OK")
-            (self.logging).info(f"RecordLength:                            {RecordLength.value}")        
-            (self.logging).info(f"PostTriggerSize:                         {PostTriggerSize.value}")        
-            (self.logging).info(f"GetIOLevel:                              {IOLevel.value}")        
-            (self.logging).info(f"GetMaxNumEventsBLT:                      {MaxNumEventsBLT.value}")        
-            (self.logging).info(f"GetAcquisitionMode:                      {AcquisitionMode.value}")        
-            (self.logging).info(f"GetExtTriggerInputMode:                  {ExtTriggerInputMode.value}")        
-            (self.logging).info(f"CAEN_DGTZ_GetChannelEnableMask:          {ChannelEnableMask.value}")        
-            (self.logging).info(f"CAEN_DGTZ_GetChannelDCOffset:            {ChannelDCOffset.value}")        
-            (self.logging).info(f"CAEN_DGTZ_GetChannelTriggerThreshold:    {ChannelTriggerThreshold.value}")        
-            (self.logging).info(f"CAEN_DGTZ_GetTriggerPolarity:            {TriggerPolarity.value}")        
-            (self.logging).info(f"CAEN_DGTZ_GetChannelSelfTrigger:         {ChannelSelfTrigger.value}")        
-            (self.logging).info(f"CAEN_DGTZ_GetFastTriggerMode:            {FastTriggerMode.value}")        
-            (self.logging).info(f"CAEN_DGTZ_GetDRS4SamplingFrequency:      {DRS4SamplingFrequency.value}")        
-        else:
-            (self.logging).warning("GetSetup failed")
-   
+        # Invert the key with the value
+        def invertKeyValue(aDict: dict):
+            return {v: k for k, v in aDict.items()}
+        for item in [CAEN_DGTZ_TriggerMode_t, CAEN_DGTZ_RunSyncMode_t, CAEN_DGTZ_IOLevel_t, CAEN_DGTZ_TriggerPolarity_t, CAEN_DGTZ_EnaDis_t, CAEN_DGTZ_DRS4Frequency_t, CAEN_DGTZ_OutputSignalMode_t, CAEN_DGTZ_AcqMode_t]:
+            item = invertKeyValue(item)
+    
+        # Trigger configuration
+        SWTriggerMode = ctypes.c_long()
+        ExtTriggerInputMode = ctypes.c_long()
+        IOLevel = ctypes.c_long()
+        TriggerPolarity = ctypes.c_long()
+        FastTriggerDigitizing = ctypes.c_long()
+        FastTriggerMode = ctypes.c_long()
+        DRS4SamplingFrequency = ctypes.c_long()
+        OutputSignalMode = ctypes.c_long()
+        GroupEnableMask = ctypes.c_uint32()
+        RecordLength = ctypes.c_uint32()
+        PostTriggerSize = ctypes.c_uint32()
+        AcquisitionMode = ctypes.c_long()
+        ChannelDCOffset = {i : ctypes.c_uint32() for i in range(8)}
+        
+        ret = {}
+        ret['CAEN_DGTZ_GetSWTriggerMode']               = self.libCAENDigitizer.CAEN_DGTZ_GetSWTriggerMode(self.handle, ctypes.byref(SWTriggerMode))
+        ret['CAEN_DGTZ_GetExtTriggerInputMode']         = self.libCAENDigitizer.CAEN_DGTZ_GetExtTriggerInputMode(self.handle, ctypes.byref(ExtTriggerInputMode))
+        ret['CAEN_DGTZ_GetIOLevel']                     = self.libCAENDigitizer.CAEN_DGTZ_GetIOLevel(self.handle, ctypes.byref(IOLevel))
+        ret['CAEN_DGTZ_GetTriggerPolarity']             = self.libCAENDigitizer.CAEN_DGTZ_GetTriggerPolarity(self.handle, ctypes.byref(TriggerPolarity))
+        ret['CAEN_DGTZ_GetFastTriggerDigitizing']       = self.libCAENDigitizer.CAEN_DGTZ_GetFastTriggerDigitizing(self.handle, ctypes.byref(FastTriggerDigitizing))
+        ret['CAEN_DGTZ_GetFastTriggerMode']             = self.libCAENDigitizer.CAEN_DGTZ_GetFastTriggerMode(self.handle, ctypes.byref(FastTriggerMode))
+        ret['CAEN_DGTZ_GetDRS4SamplingFrequency']       = self.libCAENDigitizer.CAEN_DGTZ_GetDRS4SamplingFrequency(self.handle, ctypes.byref(DRS4SamplingFrequency))
+        ret['CAEN_DGTZ_GetOutputSignalMode']            = self.libCAENDigitizer.CAEN_DGTZ_GetOutputSignalMode(self.handle, ctypes.byref(OutputSignalMode))
+        ret['CAEN_DGTZ_GetGroupEnableMask']             = self.libCAENDigitizer.CAEN_DGTZ_GetGroupEnableMask(self.handle, ctypes.byref(GroupEnableMask))
+        ret['CAEN_DGTZ_GetRecordLength']                = self.libCAENDigitizer.CAEN_DGTZ_GetRecordLength(self.handle, ctypes.byref(RecordLength))
+        ret['CAEN_DGTZ_GetPostTriggerSize']             = self.libCAENDigitizer.CAEN_DGTZ_GetPostTriggerSize(self.handle, ctypes.byref(PostTriggerSize))
+        ret['CAEN_DGTZ_GetAcquisitionMode']             = self.libCAENDigitizer.CAEN_DGTZ_GetAcquisitionMode(self.handle, ctypes.byref(AcquisitionMode))
+        for i in range(8):
+            ret[f'CAEN_DGTZ_GetChannelDCOffset_ch{i}']  = self.libCAENDigitizer.CAEN_DGTZ_GetChannelDCOffset(self.handle, i, ctypes.byref(ChannelDCOffset[i]))
+
+        flagErr = False
+        def errHandler(err):
+            if err==0:
+                return self.logging.info
+            else:
+                flagErr = True
+                return self.logging.error
+        
+        errHandler(ret['CAEN_DGTZ_GetSWTriggerMode'])               (f"SWTriggerMode:         {CAEN_DGTZ_TriggerMode_t[SWTriggerMode.value][10:]}")
+        errHandler(ret['CAEN_DGTZ_GetExtTriggerInputMode'])         (f"ExtTriggerInputMode:   {CAEN_DGTZ_TriggerMode_t[ExtTriggerInputMode.value][10:]}")
+        errHandler(ret['CAEN_DGTZ_GetIOLevel'])                     (f"IOLevel:               {CAEN_DGTZ_IOLevel_t[IOLevel.value][10:]}")
+        errHandler(ret['CAEN_DGTZ_GetTriggerPolarity'])             (f"TriggerPolarity:       {CAEN_DGTZ_TriggerPolarity_t[TriggerPolarity.value][10:]}")
+        errHandler(ret['CAEN_DGTZ_GetFastTriggerDigitizing'])       (f"FastTriggerDigitizing: {CAEN_DGTZ_EnaDis_t[FastTriggerDigitizing.value][10:]}")
+        errHandler(ret['CAEN_DGTZ_GetFastTriggerMode'])             (f"FastTriggerMode:       {CAEN_DGTZ_TriggerMode_t[FastTriggerMode.value][10:]}")
+        errHandler(ret['CAEN_DGTZ_GetDRS4SamplingFrequency'])       (f"DRS4SamplingFrequency: {CAEN_DGTZ_DRS4Frequency_t[DRS4SamplingFrequency.value][10:]}")
+        errHandler(ret['CAEN_DGTZ_GetOutputSignalMode'])            (f"OutputSignalMode:      {CAEN_DGTZ_OutputSignalMode_t[OutputSignalMode.value][10:]}")
+        errHandler(ret['CAEN_DGTZ_GetGroupEnableMask'])             (f"GroupEnableMask:       {GroupEnableMask.value}")
+        errHandler(ret['CAEN_DGTZ_GetRecordLength'])                (f"RecordLength:          {RecordLength.value}")
+        errHandler(ret['CAEN_DGTZ_GetPostTriggerSize'])             (f"PostTriggerSize:       {PostTriggerSize.value}")
+        errHandler(ret['CAEN_DGTZ_GetAcquisitionMode'])             (f"AcquisitionMode:       {CAEN_DGTZ_AcqMode_t[AcquisitionMode.value][10:]}")
+        for i in range(8):
+            errHandler(ret[f'CAEN_DGTZ_GetChannelDCOffset_ch{i}'])  (f"ChannelDCOffset ({i}): {ChannelDCOffset[i]}")
+
+
+  
     # Try to scan the linkID ports to look where the digitizer is connected
-    def autoScan(self):
+    def autoScan_UsbLinkID(self, start : int = 0, stop : int = 500) -> int:
+        """
+        Try to scan the linkID ports to look where the digitizer is connected. If successful, returns the digitizer linkID
+        
+        Parameters
+        ----------
+            start (int) : the starting linkID
+            stop (int) : the ending linkID
+        
+        Returns
+        -------
+            usbLinkID (int) : the linkID where the digitizer is connected
+        """
         (self.logging).info("Autoscan for digitizer linkID starting")
-        for usbLinkID in range(0,500):
+        for usbLinkID in range(start, stop):
             # Open the digitizer and store the handler ID
             ret = self.libCAENDigitizer.CAEN_DGTZ_OpenDigitizer(0, usbLinkID, 0, 0, ctypes.byref(self.handle))
             time.sleep(0.250)
             if ret!=0:
                 (self.logging).critical(f"CAEN_DGTZ_OpenDigitizer failed on {usbLinkID}")
-                #exit()
             else:
-                (self.logging).warning(f"CAEN_DGTZ_OpenDigitizer OK on linkID {usbLinkID}")
-                break
-   
+                (self.logging).status(f"CAEN_DGTZ_OpenDigitizer OK on linkID {usbLinkID}\n")
+                return usbLinkID
+        raise Exception(f"Digitizer not found in the linkID range {start}-{stop}")
+    
+    
+
     # Acquire function
     def openAcquire(self):
         # Malloc Readout Buffer.
@@ -529,7 +597,7 @@ class CAENDT5742B():
         # Use the first board to allocate the buffer, so if the configuration
         # is different for different boards (or you use different board models), may be
         # that the size to allocate must be different for each one.
-        ret = self.libCAENDigitizer.CAEN_DGTZ_MallocReadoutBuffer(self.handle, ctypes.byref(self.buffer), ctypes.byref(self.size))
+        ret = self.libCAENDigitizer.CAEN_DGTZ_MallocReadoutBuffer(self.handle, ctypes.byref(self.buffer), ctypes.byref(self.bufferSize))
         if ret==0:
             (self.logging).info("Allocation OK")
         else:
@@ -568,7 +636,7 @@ class CAENDT5742B():
                 # The following function returns the number of events in the buffer
                 # Get the number of events
                 # ret = self.libCAENDigitizer.CAEN_DGTZ_GetNumEvents(self.handle, self.buffer, bsize, ctypes.byref(numEvents))
-                ret |= self.libX742Decoder.GetNumEvents(self.buffer, bsize, ctypes.byref(numEvents))
+                ret |= self.libCAENX742DecodeRoutines.GetNumEvents(self.buffer, bsize, ctypes.byref(numEvents))
                 if ret!=0:
                     (self.logging).critical("CAEN_DGTZ_GetNumEvents failed")
                     self.daqLoop = False
@@ -630,7 +698,7 @@ class CAENDT5742B():
             # Decode event into the Evt data ctypes.Structure
             # ret = self.libCAENDigitizer.CAEN_DGTZ_DecodeEvent(self.handle, self.evtptr, ctypes.byref(self.Evt))
             # print(f"event ctypes.POINTER, before calling ", ctypes.addressof(self.Evt))
-            ret = self.libX742Decoder.X742_DecodeEvent(self.evtptr, ctypes.byref(self.Evt))
+            ret = self.libCAENX742DecodeRoutines.X742_DecodeEvent(self.evtptr, ctypes.byref(self.Evt))
             # print(f"event ctypes.POINTER, after calling  ", ctypes.addressof(self.Evt))
             if ret!=0:
                 (self.logging).critical("CAEN_DGTZ_DecodeEvent failed")
@@ -738,9 +806,9 @@ class CAENDT5742B():
     eventContainer = []
     trgTimetags = []
     
-########################
-###### Debug methods ###
-########################
+    ##########################################################################################################################################################################################################################################
+    ############################## Debug methods ############################################################### Debug methods ############################################################### Debug methods #################################
+    ##########################################################################################################################################################################################################################################
     # Plot
     def plotWaveform(self, samplingRate: float = 2e-9):
         import matplotlib.pyplot as plt
@@ -821,6 +889,6 @@ class CAENDT5742B():
         self.shutdownDigitizer()
         # Plot waveform
         self.plotWaveform()
-##############################################################
-######## / CAENDT5730 class ##################################
-##############################################################
+    ##########################################################################################################################################################################################################################################
+    ############################## /Debug methods ############################################################### /Debug methods ############################################################### /Debug methods ##############################
+    ##########################################################################################################################################################################################################################################
