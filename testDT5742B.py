@@ -1,8 +1,8 @@
-#/ \file    CLEAR_March/DT5730/clear/testDT5730.py
+#/ \file    CLEAR_March/DT5742/clear/testDT5742B.py
 #/ \brief   Implementation of the DT5730 control + data acquisition
 #/ \author  Pietro Grutta (pietro.grutta@pd.infn.it)
 from logger import *
-from caendt5730 import *
+from caendt5742b import *
 from rootconverter import *
 import queue
 from os.path import exists
@@ -14,19 +14,19 @@ from os.path import exists
 # Event readout queue buffer
 eventsReadout = queue.Queue()
 
-# # Instance the CAENDT5730 controller class
-dgt = CAENDT5730(usbLinkID = 0, evtReadoutQueue = eventsReadout, eventCutoff=25)
-# Open the digitizer, plot waveform and close the digitizer
-dgt.testClass(25)
-exit()
-
 # # Determine the usbLinkID of the digitizer
-# dgt = CAENDT5730(usbLinkID = 0, evtReadoutQueue = eventsReadout, eventCutoff=25)
+# dgt = CAENDT5742B(usbLinkID = 0, evtReadoutQueue = eventsReadout, eventCutoff=25)
 # dgt.autoScan()
+# exit()
+logging.setLevel("DEBUG")
+# # Instance the CAENDT5742B controller class
+dgt = CAENDT5742B(usbLinkID = 0, evtReadoutQueue = eventsReadout, eventCutoff=25)
+# Open the digitizer, plot waveform and close the digitizer
+dgt.testClass(1)
 
 
-## Instance the CAENDT5730 controller class
-#dgt = CAENDT5730(usbLinkID = 0, evtReadoutQueue = eventsReadout, eventCutoff=25)
+## Instance the CAENDT5742B controller class
+#dgt = CAENDT5742B(usbLinkID = 0, evtReadoutQueue = eventsReadout, eventCutoff=25)
 ## Open digitizer
 #dgt.open()
 ## Setup digitizer

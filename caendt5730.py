@@ -213,7 +213,7 @@ class CAENDT5730():
         ret = self.libCAENDigitizer.CAEN_DGTZ_OpenDigitizer(0, self.usbLinkID, 0, 0, byref(self.handle))
         if ret!=0:
             logging.critical("CAEN_DGTZ_OpenDigitizer failed.")
-            exit()
+            raise Exception("CAEN_DGTZ_OpenDigitizer failed.")
         else:
             logging.debug("CAEN_DGTZ_OpenDigitizer OK")
         
@@ -282,6 +282,7 @@ class CAENDT5730():
             logging.info(f"Target DC offset of {channelDCOffset_V}V is applied by setting DCoffset DAC value reg. to {channelDCOffset}")                  
         
         self.setup(recordlength=int(recordlength), triggerThreshold=int(triggerThreshold), channelDCOffset=int(channelDCOffset))
+        
     
     # Get the current setup and print
     def printCurrentSetup(self):
@@ -566,7 +567,8 @@ class CAENDT5730():
         # Open digitizer
         self.open()
         # Setup digitizer
-        self.setupSimple(windowSize_s = 50e-6, triggerThres_V = 1.5, channelDCOffset_V = 0.)
+        # self.setupSimple_DT5730(windowSize_s = 50e-6, triggerThres_V = 1.5, channelDCOffset_V = 0.)
+        self.setupSimple_DT5742B(windowSize_s = 50e-6, triggerThres_V = 1.5, channelDCOffset_V = 0.)
         # Open acquisition
         self.openAcquire()
         # Close acquisition
