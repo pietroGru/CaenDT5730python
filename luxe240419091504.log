@@ -1,0 +1,53 @@
+
+*** LogCollector started at 1713510904 ***
+[0m[1m[2024-04-19 09:15:04.766] [0m[32;1m(INFO)[0m [Producer.dt5742b ]Receive an INI section
+    <Configuration>
+      <Section title="">
+        <EUDAQ_LOG_ADDR>tcp://127.0.0.1:46563</EUDAQ_LOG_ADDR>
+        <Name>/home/grutta/work/CaenDT5730python/clearEudaq.ini</Name>
+      </Section>
+    </Configuration>
+
+[0m[1m[2024-04-19 09:15:04.766] [0m[32;1m(INFO)[0m [Producer.dt5742b ]Producer.dt5742b is to be initialised...
+[0m[1m[2024-04-19 09:15:04.766] [0m[32;1m(INFO)[0m [Producer.dt5742b ]DoInitialise
+[0m[1m[2024-04-19 09:15:04.766] [0m[32;1m(INFO)[0m [Producer.dt5742b ]Producer.dt5742b is initialised.
+[0m[1m[2024-04-19 09:15:06.059] [0m[32;1m(INFO)[0m [RunControl.RC-GUI ]Processing Configure command
+[0m[1m[2024-04-19 09:15:06.099] [0m[32;1m(INFO)[0m [Producer.dt5742b ]Receive a CONF section
+    <Configuration>
+      <Section title="">
+        <LogCollector.log>tcp://127.0.0.1:46563</LogCollector.log>
+        <Name>/home/grutta/work/CaenDT5730python/clearEudaq.conf</Name>
+      </Section>
+      <Section title="Producer.dt5742b">
+        <AcqMode>CAEN_DGTZ_SW_CONTROLLED</AcqMode>
+        <ChannelDCOffset>0x7FFF</ChannelDCOffset>
+        <DRS4Frequency>CAEN_DGTZ_DRS4_750MHz</DRS4Frequency>
+        <EUDAQ_DC>luxeDataCollector,diskDumpRaw</EUDAQ_DC>
+        <EUDAQ_ID>4</EUDAQ_ID>
+        <ExtTriggerInputMode>CAEN_DGTZ_TRGMODE_ACQ_ONLY</ExtTriggerInputMode>
+        <GroupEnableMask>0b1</GroupEnableMask>
+        <IOLevel>CAEN_DGTZ_IOLevel_TTL</IOLevel>
+        <OutputSignalMode>CAEN_DGTZ_TRIGGER</OutputSignalMode>
+        <PostTriggerSizePercent>100</PostTriggerSizePercent>
+        <RecordLength>1024</RecordLength>
+        <RunSyncMode>CAEN_DGTZ_RUN_SYNC_Disabled</RunSyncMode>
+        <SWTriggerMode>CAEN_DGTZ_TRGMODE_DISABLED</SWTriggerMode>
+        <TriggerPolarity>CAEN_DGTZ_TriggerOnRisingEdge</TriggerPolarity>
+        <usbLinkID>0</usbLinkID>
+      </Section>
+    </Configuration>
+
+[0m[1m[2024-04-19 09:15:06.100] [0m[32;1m(INFO)[0m [Producer.dt5742b ]Producer.dt5742b is to be configured...
+[0m[1m[2024-04-19 09:15:06.100] [0m[32;1m(INFO)[0m [Producer.dt5742b ]DoConfigure
+[0m[1m[2024-04-19 09:15:06.110] [0m[32;1m(INFO)[0m [Producer.dt5742b ]Producer.dt5742b is configured.
+[0m[1m[2024-04-19 09:15:16.013] [0m[32;1m(INFO)[0m [RunControl.RC-GUI ]Processing Reset command
+[0m[1m[2024-04-19 09:15:16.013] [0m[32;1m(INFO)[0m [Producer.dt5742b ]Producer.dt5742b is to be reset...
+[0m[1m[2024-04-19 09:15:16.013] [0m[32;1m(INFO)[0m [Producer.dt5742b ]DoReset
+[0m[1m[2024-04-19 09:15:16.013] [0m[32;1m(INFO)[0m [Producer.dt5742b ]Producer.dt5742b is reset.
+[0m[1m[2024-04-19 09:16:31.669] [0m[32;1m(INFO)[0m [RunControl.RC-GUI ]Processing Reset command
+[0m[1m[2024-04-19 09:16:56.914] [0m[32;1m(INFO)[0m [RunControl.RC-GUI ]Connect:    
+[0m[1m[2024-04-19 09:16:58.719] [0m[32;1m(INFO)[0m [RunControl.RC-GUI ]Processing Reset command
+[0m[1m[2024-04-19 09:18:08.321] [0m[32;1m(INFO)[0m [RunControl.RC-GUI ]Connect:    
+[0m[1m[2024-04-19 09:18:10.727] [0m[32;1m(INFO)[0m [RunControl.RC-GUI ]Processing Reset command
+[0m[1m[2024-04-19 09:18:13.841] [0m[32;1m(INFO)[0m [RunControl.RC-GUI ]Processing Initialise command
+[0m[1m[2024-04-19 09:18:13.841] [0m[32;1m(INFO)[0m [RunControl.RC-GUI ]Processing Initialise command for log

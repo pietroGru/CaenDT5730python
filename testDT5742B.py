@@ -1,11 +1,8 @@
 #/ \file    CLEAR_March/DT5742/clear/testDT5742B.py
 #/ \brief   Implementation of the DT5730 control + data acquisition
 #/ \author  Pietro Grutta (pietro.grutta@pd.infn.it)
-from logger import *
-from caendt5742b import *
-from rootconverter import *
+from caendt5742b import CAENDT5742B
 import queue
-from os.path import exists
 
 
 ##############################################################
@@ -18,11 +15,11 @@ eventsReadout = queue.Queue()
 # dgt = CAENDT5742B(usbLinkID = 0, evtReadoutQueue = eventsReadout, eventCutoff=25)
 # dgt.autoScan()
 # exit()
-logging.setLevel("DEBUG")
+
 # # Instance the CAENDT5742B controller class
 dgt = CAENDT5742B(usbLinkID = 0, evtReadoutQueue = eventsReadout, eventCutoff=25)
 # Open the digitizer, plot waveform and close the digitizer
-dgt.testClass(1)
+dgt.testClass(2)
 
 
 ## Instance the CAENDT5742B controller class
